@@ -1,55 +1,69 @@
-// #include <Arduino.h>
-// #include <Wire.h>
+float currentTempTotal = 0;
+float currentHumidTotal = 0;
+int numReadings = 0;
 
-// #include <LiquidCrystal_I2C.h>
-// LiquidCrystal_I2C lcd(0x27, 16, 2);
+float avgTemp[3];
+float avgHumid[3];
 
-// #include <RtcDS1307.h>
-// RtcDS1307<TwoWire> Rtc(Wire);
-
-// #include <DHT22.h>
-// #define pinDATA 13
-// DHT22 dht22(pinDATA); 
+int previousHour;
+int previousDay;
 
 
-// void setup() {
-//     Serial.begin(115200);
-//     Wire.begin();
-//     Rtc.Begin();
-//     lcd.init();
-//     lcd.backlight();
+void addReading(float temp, float humid) {
+  currentTempTotal += temp;
+  currentHumidTotal += humid;
+  numReadings++;
+}
 
-//     if (!Rtc.IsDateTimeValid()) {
-//         RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
-//         Rtc.SetDateTime(compiled);
-//     }
+void resetTotals() {
+    currentTempTotal = 0;
+    currentHumidTotal = 0;
+    numReadings = 0;
+}
 
-//     if (!Rtc.GetIsRunning()) {
-//         Rtc.SetIsRunning(true);
-//     }
-// }
+void calculateAndStoreAverage(int hour) {
+    if (hour == 8) {
+        avgTemp[0] = currentTempTotal / numReadings;
+        avgHumid[0] = currentHumidTotal / numReadings;
+        resetTotals();        
+    }
 
-// void loop() {
-//     RtcDateTime dt = Rtc.GetDateTime();
+    if (hour == 16) {
+        avgTemp[1] = currentTempTotal / numReadings;
+        avgHumid[1] = currentHumidTotal / numReadings;
+        resetTotals();        
+    }
 
-//     if (Rtc.IsDateTimeValid()) {
-//         char dataString[17];
-//         snprintf(dataString, sizeof(dataString), "Time: %02u:%02u:%02u", dt.Hour(), dt.Minute(), dt.Second());
+    if (hour == 0) {
+        avgTemp[2] = currentTempTotal / numReadings;
+        avgHumid[2] = currentHumidTotal / numReadings;
+        resetTotals();        
+    }
+}
 
-//         lcd.setCursor(0, 0);
-//         lcd.print(dataString);
-//     }
+int getCurrentHourFromRTC() {
+  return 0; // Placeholder
+}
 
-//     float t = dht22.getTemperature();
-//     float h = dht22.getHumidity();
+void setup() {
 
-//     if (true) {
-//         char dataString[17];
-//         snprintf(dataString, sizeof(dataString), "T:%.1fC H:%.1f%%%", t, h);
+}
 
-//         lcd.setCursor(0, 1);
-//         lcd.print(dataString);
-//     }
+void loop() {
+    RtcDateTime dt = Rtc.GetDateTime();
+    int hour = dt.Hour();
+  
+    if (hour != previousHour) {
+        addReading(float temp, float humid);
+        previousHour = dt.Hour();
 
-//     delay(1000);
-// }
+        if (hour == 8 && hour == 16 && hour == 0) {
+            calculateAndStoreAverage(hour);
+        }
+        if (dt.Day() != previousDay) {
+            previousDay = dt.Day();
+      }
+    }
+  
+    // ... (Display logic)
+  }
