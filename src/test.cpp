@@ -1,69 +1,147 @@
-float currentTempTotal = 0;
-float currentHumidTotal = 0;
-int numReadings = 0;
 
-float avgTemp[3];
-float avgHumid[3];
+#include <RtcDS1307.h>
+RtcDS1307<TwoWire> Rtc(Wire);
 
-int previousHour;
-int previousDay;
+#include <DHT22.h>
+#define pinDATA 13
+DHT22 dht22(pinDATA);
 
 
-void addReading(float temp, float humid) {
-  currentTempTotal += temp;
-  currentHumidTotal += humid;
-  numReadings++;
-}
+int currentHour = 0;
+float totalDailyTemp[3];
+float totalDailyHumid[3];
 
-void resetTotals() {
-    currentTempTotal = 0;
-    currentHumidTotal = 0;
-    numReadings = 0;
-}
+int eepromStartAddress;
 
-void calculateAndStoreAverage(int hour) {
-    if (hour == 8) {
-        avgTemp[0] = currentTempTotal / numReadings;
-        avgHumid[0] = currentHumidTotal / numReadings;
-        resetTotals();        
+int currentDayIndex = 0;
+float tempAverages[7][3] = {
+    {20.5, 25.0, 18.2}, {21.0, 26.5, 19.0}, {22.2, 27.8, 20.1},
+    {23.1, 28.5, 21.0}, {24.0, 29.2, 21.8}, {24.8, 29.8, 22.5},
+    {25.5, 30.5, 23.2}
+}; // remove data after first use
+float humidAverages[7][3] = {
+    {60.2, 55.8, 65.1}, {62.5, 58.0, 68.0}, {65.0, 60.5, 70.2},
+    {68.2, 63.1, 72.5}, {70.8, 65.5, 75.0}, {73.5, 68.0, 77.2},
+    {76.0, 70.2, 79.5}
+}; // remove data after first use
+
+
+void storeDataToEeprom() {
+    int address = eepromStartAddress;
+
+    EEPROM.put(address, currentDayIndex);
+    address += sizeof(int);
+
+    address += currentDayIndex * 3 * sizeof(float);
+
+    for (int i = 0; i < 3; i++) {
+        EEPROM.put(address, totalDailyTemp[i] / 8);
+        address += sizeof(float);
     }
 
-    if (hour == 16) {
-        avgTemp[1] = currentTempTotal / numReadings;
-        avgHumid[1] = currentHumidTotal / numReadings;
-        resetTotals();        
-    }
+    address += 19 * sizeof(float);
 
-    if (hour == 0) {
-        avgTemp[2] = currentTempTotal / numReadings;
-        avgHumid[2] = currentHumidTotal / numReadings;
-        resetTotals();        
+    for (int i = 0; i < 3; i++) {
+        EEPROM.put(address, totalDailyTemp[i] / 8);
+        address += sizeof(float);
     }
 }
 
-int getCurrentHourFromRTC() {
-  return 0; // Placeholder
+void readDataFromEeprom() {
+    int address = eepromStartAddress;
+
+    EEPROM.get(address, currentDayIndex);
+    address += sizeof(int);
+
+    for (int i = 0; i < 7; i++) {
+        for (int j = 0; j < 3; j++) {
+            EEPROM.get(address, tempAverages[i][j]);
+            address += sizeof(float);
+        }
+    }
+
+    for (int i = 0; i < 7; i++) {
+        for (int j = 0; j < 3; j++) {
+            EEPROM.get(address, humidAverages[i][j]);
+            address += sizeof(float);
+        }
+    }
 }
+
+void addUpDataToDailyTotal(int p, float t, float h) {
+    totalDailyTemp[p] += t;
+    totalDailyHumid[p] += h;
+}
+
 
 void setup() {
+    Serial.begin(115200);
 
+    Serial.println("Hi");
+
+    Wire.begin(8,9);
+    Rtc.Begin();
+
+    if (!Rtc.IsDateTimeValid()) {
+        RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
+        Rtc.SetDateTime(compiled);
+    }
+
+    if (!Rtc.GetIsRunning()) {
+        Rtc.SetIsRunning(true);
+    }
+
+    // readDataFromEeprom(); // for the first use the data have to be stored first, then uncomment this
 }
 
 void loop() {
     RtcDateTime dt = Rtc.GetDateTime();
     int hour = dt.Hour();
-  
-    if (hour != previousHour) {
-        addReading(float temp, float humid);
-        previousHour = dt.Hour();
 
-        if (hour == 8 && hour == 16 && hour == 0) {
-            calculateAndStoreAverage(hour);
+    float t = dht22.getTemperature();
+    float h = dht22.getHumidity();
+    
+  
+    if (currentHour != hour) {
+        currentHour = dt.Hour();
+
+        int p;
+        if (currentHour <= 8 && currentHour != 0) { p = 0; }
+        else if (currentHour <= 16) { p = 1; }
+        else if (currentHour <= 23 && currentHour == 0) { p = 2; }
+        addUpDataToDailyTotal(p, t, h);
+
+        if (hour == 0) {
+            storeDataToEeprom();
+            readDataFromEeprom();
+
+            currentDayIndex = (currentDayIndex++) % 7;
         }
-        if (dt.Day() != previousDay) {
-            previousDay = dt.Day();
+    }
+
+    Serial.println();
+    Serial.println();
+    Serial.println();
+    Serial.println(currentDayIndex);
+    for (int i = 0; i < 7; i++) {
+      for (int j = 0; j < 3; j++) {
+        Serial.print(tempAverages[i][j]);
+        Serial.print(" ");
+        Serial.print(tempAverages[i][j]);
+        Serial.print(" ");
+        Serial.println(tempAverages[i][j]);
+      }
+    }
+    Serial.println();
+    for (int i = 0; i < 7; i++) {
+      for (int j = 0; j < 3; j++) {
+        Serial.print(humidAverages[i][j]);
+        Serial.print(" ");
+        Serial.print(humidAverages[i][j]);
+        Serial.print(" ");
+        Serial.println(humidAverages[i][j]);
       }
     }
   
-    // ... (Display logic)
+    delay(1000);
   }
