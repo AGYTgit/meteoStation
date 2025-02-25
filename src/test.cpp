@@ -1,147 +1,154 @@
+// #include <Arduino.h>
+// #include <Wire.h>
+// #include <EEPROM.h>
 
-#include <RtcDS1307.h>
-RtcDS1307<TwoWire> Rtc(Wire);
+// #include <RtcDS1307.h>
+// RtcDS1307<TwoWire> Rtc(Wire);
 
-#include <DHT22.h>
-#define pinDATA 13
-DHT22 dht22(pinDATA);
+// #define NUM_DAYS 7
+// #define NUM_PERIODS 3
+// #define EEPROM_SIZE 512
 
+// float tempAverages[NUM_DAYS][NUM_PERIODS];
+// float humidAverages[NUM_DAYS][NUM_PERIODS];
+// float totalDailyTemp[NUM_PERIODS];
+// float totalDailyHumid[NUM_PERIODS];
+// int sampleCounts[NUM_PERIODS];
 
-int currentHour = 0;
-float totalDailyTemp[3];
-float totalDailyHumid[3];
+// int currentDayIndex = 0;
+// int currentHour = 0;
+// int eepromStartAddress = 0;
 
-int eepromStartAddress;
+// void storeDataToEeprom() {
+//     int address = eepromStartAddress;
 
-int currentDayIndex = 0;
-float tempAverages[7][3] = {
-    {20.5, 25.0, 18.2}, {21.0, 26.5, 19.0}, {22.2, 27.8, 20.1},
-    {23.1, 28.5, 21.0}, {24.0, 29.2, 21.8}, {24.8, 29.8, 22.5},
-    {25.5, 30.5, 23.2}
-}; // remove data after first use
-float humidAverages[7][3] = {
-    {60.2, 55.8, 65.1}, {62.5, 58.0, 68.0}, {65.0, 60.5, 70.2},
-    {68.2, 63.1, 72.5}, {70.8, 65.5, 75.0}, {73.5, 68.0, 77.2},
-    {76.0, 70.2, 79.5}
-}; // remove data after first use
+//     EEPROM.put(address, currentDayIndex);
+//     address += sizeof(int);
 
+//     for (int i = 0; i < NUM_DAYS; i++) {
+//         for (int j = 0; j < NUM_PERIODS; j++) {
+//             EEPROM.put(address, tempAverages[i][j]);
+//             address += sizeof(float);
+//             EEPROM.put(address, humidAverages[i][j]);
+//             address += sizeof(float);
+//         }
+//     }
 
-void storeDataToEeprom() {
-    int address = eepromStartAddress;
+//     EEPROM.commit();
+// }
 
-    EEPROM.put(address, currentDayIndex);
-    address += sizeof(int);
+// void readDataFromEeprom() {
+//     int address = eepromStartAddress;
 
-    address += currentDayIndex * 3 * sizeof(float);
+//     EEPROM.get(address, currentDayIndex);
+//     address += sizeof(int);
 
-    for (int i = 0; i < 3; i++) {
-        EEPROM.put(address, totalDailyTemp[i] / 8);
-        address += sizeof(float);
-    }
+//     for (int i = 0; i < NUM_DAYS; i++) {
+//         for (int j = 0; j < NUM_PERIODS; j++) {
+//             EEPROM.get(address, tempAverages[i][j]);
+//             address += sizeof(float);
+//             EEPROM.get(address, humidAverages[i][j]);
+//             address += sizeof(float);
+//         }
+//     }
+// }
 
-    address += 19 * sizeof(float);
+// void addData(float t, float h, int hour) {
+//     int period;
+//     if (hour >= 0 && hour < 8) {
+//         period = 0;
+//     } else if (hour >= 8 && hour < 16) {
+//         period = 1;
+//     } else {
+//         period = 2;
+//     }
 
-    for (int i = 0; i < 3; i++) {
-        EEPROM.put(address, totalDailyTemp[i] / 8);
-        address += sizeof(float);
-    }
-}
+//     totalDailyTemp[period] += t;
+//     totalDailyHumid[period] += h;
+//     sampleCounts[period]++;
+// }
 
-void readDataFromEeprom() {
-    int address = eepromStartAddress;
+// void calculateAverages(int period) {
+//     if (sampleCounts[period] > 0) {
+//         tempAverages[currentDayIndex][period] = totalDailyTemp[period] / sampleCounts[period];
+//         humidAverages[currentDayIndex][period] = totalDailyHumid[period] / sampleCounts[period];
+//     } else {
+//         tempAverages[currentDayIndex][period] = 0;
+//         humidAverages[currentDayIndex][period] = 0;
+//     }
+// }
 
-    EEPROM.get(address, currentDayIndex);
-    address += sizeof(int);
+// void resetDailyTotals() {
+//     for (int i = 0; i < NUM_PERIODS; i++) {
+//         totalDailyTemp[i] = 0;
+//         totalDailyHumid[i] = 0;
+//         sampleCounts[i] = 0;
+//     }
+// }
 
-    for (int i = 0; i < 7; i++) {
-        for (int j = 0; j < 3; j++) {
-            EEPROM.get(address, tempAverages[i][j]);
-            address += sizeof(float);
-        }
-    }
+// void setup() {
+//     Serial.begin(115200);
+//     EEPROM.begin(EEPROM_SIZE);
+//     Wire.begin();
+//     Rtc.Begin();
 
-    for (int i = 0; i < 7; i++) {
-        for (int j = 0; j < 3; j++) {
-            EEPROM.get(address, humidAverages[i][j]);
-            address += sizeof(float);
-        }
-    }
-}
+//     if (!Rtc.IsDateTimeValid()) {
+//         RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
+//         Rtc.SetDateTime(compiled);
+//     }
 
-void addUpDataToDailyTotal(int p, float t, float h) {
-    totalDailyTemp[p] += t;
-    totalDailyHumid[p] += h;
-}
+//     if (!Rtc.GetIsRunning()) {
+//         Rtc.SetIsRunning(true);
+//     }
 
+//     readDataFromEeprom();
+//     resetDailyTotals();
+// }
 
-void setup() {
-    Serial.begin(115200);
+// void loop() {
+//     if (Serial.available() > 0) {
+//         String input = Serial.readStringUntil('\n');
+//         float t, h;
+//         int hour;
+//         sscanf(input.c_str(), "%f %f %d", &t, &h, &hour);
 
-    Serial.println("Hi");
+//         if (currentHour != hour) {
+//             currentHour = hour;
 
-    Wire.begin(8,9);
-    Rtc.Begin();
+//             addData(t, h, hour);
 
-    if (!Rtc.IsDateTimeValid()) {
-        RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
-        Rtc.SetDateTime(compiled);
-    }
+//             if (hour == 8 || hour == 16 || hour == 0) {
+//                 int period = (hour == 0) ? 2 : (hour / 8) - 1;
+//                 calculateAverages(period);
 
-    if (!Rtc.GetIsRunning()) {
-        Rtc.SetIsRunning(true);
-    }
+//                 if (hour == 0) {
+//                     storeDataToEeprom();
+//                     currentDayIndex = (currentDayIndex + 1) % NUM_DAYS;
+//                     resetDailyTotals();
+//                 }
+//             }
+//         }
 
-    // readDataFromEeprom(); // for the first use the data have to be stored first, then uncomment this
-}
+//         Serial.println();
+//         Serial.print("Day: ");
+//         Serial.println(currentDayIndex);
+//         Serial.println("Temperature Averages:");
+//         for (int i = 0; i < NUM_DAYS; i++) {
+//             for (int j = 0; j < NUM_PERIODS; j++) {
+//                 Serial.print(tempAverages[i][j]);
+//                 Serial.print(" ");
+//             }
+//             Serial.println();
+//         }
+//         Serial.println("Humidity Averages:");
+//         for (int i = 0; i < NUM_DAYS; i++) {
+//             for (int j = 0; j < NUM_PERIODS; j++) {
+//                 Serial.print(humidAverages[i][j]);
+//                 Serial.print(" ");
+//             }
+//             Serial.println();
+//         }
+//     }
 
-void loop() {
-    RtcDateTime dt = Rtc.GetDateTime();
-    int hour = dt.Hour();
-
-    float t = dht22.getTemperature();
-    float h = dht22.getHumidity();
-    
-  
-    if (currentHour != hour) {
-        currentHour = dt.Hour();
-
-        int p;
-        if (currentHour <= 8 && currentHour != 0) { p = 0; }
-        else if (currentHour <= 16) { p = 1; }
-        else if (currentHour <= 23 && currentHour == 0) { p = 2; }
-        addUpDataToDailyTotal(p, t, h);
-
-        if (hour == 0) {
-            storeDataToEeprom();
-            readDataFromEeprom();
-
-            currentDayIndex = (currentDayIndex++) % 7;
-        }
-    }
-
-    Serial.println();
-    Serial.println();
-    Serial.println();
-    Serial.println(currentDayIndex);
-    for (int i = 0; i < 7; i++) {
-      for (int j = 0; j < 3; j++) {
-        Serial.print(tempAverages[i][j]);
-        Serial.print(" ");
-        Serial.print(tempAverages[i][j]);
-        Serial.print(" ");
-        Serial.println(tempAverages[i][j]);
-      }
-    }
-    Serial.println();
-    for (int i = 0; i < 7; i++) {
-      for (int j = 0; j < 3; j++) {
-        Serial.print(humidAverages[i][j]);
-        Serial.print(" ");
-        Serial.print(humidAverages[i][j]);
-        Serial.print(" ");
-        Serial.println(humidAverages[i][j]);
-      }
-    }
-  
-    delay(1000);
-  }
+//     delay(1000);
+// }
