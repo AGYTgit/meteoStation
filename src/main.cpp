@@ -35,6 +35,10 @@ int currentDayIndex = 0;
 int currentHour = -1;
 int eepromStartAddress = 0;
 
+int hour = 0;
+int minute = 0;
+int second = 0;
+
 void updateWebpage() {
     webpage = R"=====(<!DOCTYPE html>
         <html lang="en">
@@ -357,9 +361,17 @@ void loop() {
     server.handleClient();
 
     RtcDateTime now = Rtc.GetDateTime();
-    int hour = now.Hour();
-    int minute = now.Minute();
-    int second = now.Second();
+    hour = now.Hour();
+    minute = now.Minute();
+    second = now.Second();
+
+    // if (Serial.available()) { // manual input for skipping hours
+    //     hour = Serial.parseInt();
+    //     Serial.println(hour);
+    //     while (Serial.available() > 0) {
+    //         Serial.read();
+    //     }
+    // }
 
     if (currentHour != hour) {
         currentHour = hour;
